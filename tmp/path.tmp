@@ -1,0 +1,1 @@
+sgd_PreActResNet18_swa_at_80_kd_T=1.47_rb=0.8_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10_epoch=1000

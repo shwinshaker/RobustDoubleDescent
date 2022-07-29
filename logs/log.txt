@@ -1,0 +1,16 @@
+s [] [2] Fri Jul 29 01:04:36 PDT 2022 [Path]: checkpoints/test_cifar100_sgd_PreActResNet18_swa_at_80_kd_T=1.53_rb=0.83_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10
+s [] [2] Fri Jul 29 01:05:58 PDT 2022 [Path]: checkpoints/test_cifar100_sgd_PreActResNet18_swa_at_80_kd_T=1.53_rb=0.83_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10
+s [] [2] Fri Jul 29 01:06:52 PDT 2022 [Path]: checkpoints/test_cifar100_sgd_PreActResNet18_swa_at_80_kd_T=1.53_rb=0.83_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10
+s [] [2] Fri Jul 29 01:08:29 PDT 2022 [Path]: checkpoints/test_cifar100_sgd_PreActResNet18_swa_at_80_kd_T=1.53_rb=0.83_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10
+s [] [2] Fri Jul 29 01:09:07 PDT 2022 [Path]: checkpoints/test_cifar100_sgd_PreActResNet18_swa_at_80_kd_T=1.53_rb=0.83_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10
+s [] [2] Fri Jul 29 01:10:14 PDT 2022 [Path]: checkpoints/test_cifar100_sgd_PreActResNet18_swa_at_80_kd_T=1.53_rb=0.83_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10
+s [] [2] Fri Jul 29 01:18:49 PDT 2022 [Path]: checkpoints/test_cifar100_sgd_PreActResNet18_swa_at_80_kd_T=1.53_rb=0.83_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10
+s [] [2] Fri Jul 29 01:27:55 PDT 2022 [Path]: checkpoints/test_cifar100_sgd_PreActResNet18_swa_at_80_kd_T=1.53_rb=0.83_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10
+s [] [1] Fri Jul 29 01:32:27 PDT 2022 [Path]: checkpoints/test_cifar100_sgd_PreActResNet18_swa_at_80_kd_T=1.53_rb=0.83_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10
+s [] [1] Fri Jul 29 01:47:34 PDT 2022 [Path]: checkpoints/test_cifar100_sgd_PreActResNet18_swa_at_80_kd_T=1.53_rb=0.83_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10
+s [] [1] Fri Jul 29 01:54:22 PDT 2022 [Path]: checkpoints/test_cifar100_sgd_PreActResNet18_swa_at_80_kd_T=1.53_rb=0.83_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10
+s [] [1] Fri Jul 29 01:59:01 PDT 2022 [Path]: checkpoints/test_cifar100_sgd_PreActResNet18_swa_at_80_kd_T=1.53_rb=0.83_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10
+s [] [1] Fri Jul 29 02:06:33 PDT 2022 [Path]: checkpoints/test_cifar100_sgd_PreActResNet18_swa_at_80_kd_T=1.53_rb=0.83_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10_sub=mean_rb_id_pgd10_epoch_friend_10000_cifar100
+s [92204] [1] Fri Jul 29 02:07:31 PDT 2022 [Path]: checkpoints/cifar100_sgd_PreActResNet18_swa_at_80_kd_T=1.53_rb=0.83_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10_sub=mean_rb_id_pgd10_epoch_friend_10000_cifar100_epoch=1000
+s [96217] [1] Fri Jul 29 02:09:32 PDT 2022 [Path]: checkpoints/cifar100_sgd_PreActResNet18_swa_at_80_kd_T=1.53_rb=0.83_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10_epoch=1000
+s [97374] [5] Fri Jul 29 10:03:19 PDT 2022 [Path]: checkpoints/sgd_PreActResNet18_swa_at_80_kd_T=1.47_rb=0.8_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10_epoch=1000
