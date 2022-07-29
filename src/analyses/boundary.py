@@ -30,10 +30,6 @@ def get_net(path, num_classes, n_channel, device, model='resnet', bn=True, depth
     else:
         raise KeyError(model)
 
-    if is_parallel(path):
-        # model is trained on multiple gpu, named after 'module.'
-        net = torch.nn.DataParallel(net)
-
     net.load_state_dict(state_dict)
     net.eval()
 

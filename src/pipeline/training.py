@@ -7,7 +7,7 @@ import torch.nn as nn
 import numpy as np
 from ..preprocess import get_loaders
 from ..utils import ParameterTracker, LipTracker, LrTracker, ResidualTracker, RobustTracker, ManifoldTracker, ExampleTracker, ConfTracker
-from ..utils import save_checkpoint
+from ..utils import save_checkpoint, save_model
 from . import Tester, SWA
 from ..adversary import AdTrainer
 import time
@@ -87,13 +87,6 @@ def train(config, net=None, loaders=None, criterion=None, optimizer=None, schedu
             scheduler.step()
 
         save_checkpoint(epoch, net, optimizer, scheduler)
-
-        if config.save_interval:
-            # save model sequentially
-            if epoch % config.save_interval == 0:
-                torch.save(net.state_dict(), 'model-%s.pt' % epoch)
-
-    torch.save(net.state_dict(), 'model.pt')
 
     tester.close()
     adtrainer.close()

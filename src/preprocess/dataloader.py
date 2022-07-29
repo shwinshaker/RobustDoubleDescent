@@ -17,7 +17,6 @@ def get_loaders(dataset='cifar10', classes=None, batch_size=128,
                 shuffle_train_loader=True, random_augment=True,
                 trainsize=None, testsize=None, 
                 trainsubids=None, testsubids=None, # for select ids
-                trainextrasubids=[],
                 labelnoisyids=[], # training set only
                 weights={}, testweights={},
                 data_dir='/home/jingbo/chengyu/Initialization/data',
@@ -122,107 +121,40 @@ def get_loaders(dataset='cifar10', classes=None, batch_size=128,
     print(testweights.keys())
     testset = WeightedDataset(testset, weights=testweights)
 
-    # -- Select sub-classes
-    if not classes:
-        # save attributes
-        classes = trainset.classes
-        class_to_idx = trainset.class_to_idx
+    # save attributes
+    classes = trainset.classes
+    class_to_idx = trainset.class_to_idx
 
-        # Extra subsets to evaluate training set
-        trainextrasubsets = []
-        if trainextrasubids:
-            # assert(trainsubids is not None), 'Eval subsets are set, but train subset is not. Double check!'
-            # sanity check
-            if trainsubids is not None:
-                trainids_ = trainsubids
-            else:
-                trainids_ = np.arange(len(trainset))
-            for ids in trainextrasubids:
-                assert(np.all(np.isin(ids, trainids_))), 'Eval subset ids is not included in the trainset ids ! Double check!'
+    trainsubids_ = None
 
-            # select extra subids before changing trainset
-            trainextrasubsets = [torch.utils.data.Subset(trainset, ids) for ids in trainextrasubids]
+    # Randomly select subset
+    if trainsize is not None:
+        assert trainsubids is None, 'selected based on ids is prohibited when size is enabled'
+        assert trainsize < len(trainset), 'training set has only %i examples' % len(trainset)
+        # random select subsets
+        trainsubids_ = np.random.choice(len(trainset), trainsize, replace=False)
+        targets = [trainset.targets[i] for i in trainsubids_]
+        trainset = torch.utils.data.Subset(trainset, trainsubids_)
+        np.save('id_train_%s_size=%i.npy' % (dataset, trainsize), trainsubids_)
 
-        trainsubids_ = None
+        # recover attributes
+        trainset.classes = classes
+        trainset.class_to_idx = class_to_idx
+        trainset.targets = targets
 
-        # Randomly select subset
-        if trainsize is not None:
-            assert trainsubids is None, 'selected based on ids is prohibited when size is enabled'
-            assert trainsize < len(trainset), 'training set has only %i examples' % len(trainset)
-            # random select subsets
-            # trainids = np.arange(len(trainset))
-            # trainsubids = np.random.sample(trainids, trainsize)
-            trainsubids_ = np.random.choice(len(trainset), trainsize,
-                                            replace=False)
-            targets = [trainset.targets[i] for i in trainsubids_]
-            trainset = torch.utils.data.Subset(trainset, trainsubids_)
+    # Specified subset
+    if trainsubids is not None:
+        assert(isinstance(trainsubids, np.ndarray))
+        targets = [trainset.targets[i] for i in trainsubids]
+        trainset = torch.utils.data.Subset(trainset, trainsubids)
 
-            # recover attributes
-            trainset.classes = classes
-            trainset.class_to_idx = class_to_idx
-            trainset.targets = targets
+        # recover attributes
+        trainset.classes = classes
+        trainset.class_to_idx = class_to_idx
+        trainset.targets = targets
 
-            # # Select a subset of training set in this training subset only for robustness validation
-            # if len(testset) < len(trainset):
-            #     subids = random.sample(range(len(trainset)), len(testset))
-            #     trainextrasubsets.append(torch.utils.data.Subset(trainset, subids))
-            # else:
-            #     trainextrasubsets.append(trainset)
-
-        # Specified subset
-        if trainsubids is not None:
-            assert(isinstance(trainsubids, np.ndarray))
-            # targets = np.array(trainset.targets)[trainsubids].tolist()
-            targets = [trainset.targets[i] for i in trainsubids]
-            trainset = torch.utils.data.Subset(trainset, trainsubids)
-
-            # recover attributes
-            trainset.classes = classes
-            trainset.class_to_idx = class_to_idx
-            trainset.targets = targets
-
-            # to be consistent with the variable used above
-            trainsubids_ = np.array(trainsubids)
-
-            # # Select a subset of training set in this training subset only for robustness validation
-            # if len(testset) < len(trainset):
-            #     subids = random.sample(range(len(trainset)), len(testset))
-            #     trainextrasubsets.append(torch.utils.data.Subset(trainset, subids))
-            # else:
-            #     trainextrasubsets.append(trainset)
-
-        if testsize is not None or testsubids is not None:
-            raise NotImplementedError
-    else:
-        assert isinstance(classes, tuple) or isinstance(classes, list)
-        assert all([c in trainset.classes for c in classes]), (trainset.classes, classes)
-
-        idx_classes = [trainset.class_to_idx[c] for c in classes]
-        idx_convert = dict([(idx, i) for i, idx in enumerate(idx_classes)])
-        class_to_idx = dict([(c, i) for i, c in enumerate(classes)])
-
-        # select in-class indices
-        trainids = [i for i in range(len(trainset)) if trainset.targets[i] in idx_classes]
-        testids = [i for i in range(len(testset)) if testset.targets[i] in idx_classes]
-
-        # modify labels. 0-9(10 classes) -> 0-1(2 classes)
-        for idx in trainids:
-            trainset.targets[idx] = idx_convert[trainset.targets[idx]]
-        for idx in testids:
-            testset.targets[idx] = idx_convert[testset.targets[idx]]
-
-        # select a subset if needed
-        if trainsize:
-            random.shuffle(trainids)
-            trainids = trainids[:trainsize]
-        if testsize:
-            random.shuffle(testids)
-            testids = testids[:testsize]
-        if trainsubids is not None or testsubids is not None:
-            raise NotImplementedError
-        
-        trainset = torch.utils.data.Subset(trainset, trainids)
-        testset = torch.utils.data.Subset(testset, testids)
+        # to be consistent with the variable used above
+        trainsubids_ = np.array(trainsubids)
 
     if hasattr(config, 'traintest') and config.traintest:
         # select a subset of training set for robustness validation
@@ -233,6 +165,28 @@ def get_loaders(dataset='cifar10', classes=None, batch_size=128,
         else:
             trainsubset = trainset
 
+    # -- train validation split
+    if hasattr(config, 'valsize') and config.valsize:
+        assert config.valsize < len(trainset), 'training set has only %i examples' % len(trainset)
+        # select validation set
+        rng = np.random.default_rng(7) # fixed seed
+        valsubids_ = rng.choice(len(trainset), config.valsize, replace=False)
+        np.save('id_val_%s_size=%i.npy' % (dataset, config.valsize), valsubids_)
+        targets = [trainset.targets[i] for i in valsubids_]
+        valset = torch.utils.data.Subset(trainset, valsubids_)
+        valset.classes = classes
+        valset.class_to_idx = class_to_idx
+        valset.targets = targets
+
+        # rest of the training set
+        trainsubids_ = np.setdiff1d(np.arange(len(trainset)), valsubids_)
+        targets = [trainset.targets[i] for i in trainsubids_]
+        trainset = torch.utils.data.Subset(trainset, trainsubids_)
+        trainset.classes = classes
+        trainset.class_to_idx = class_to_idx
+        trainset.targets = targets
+
+
     print('- training set -')
     summary(trainset, classes, class_to_idx)
     print('- test set -')
@@ -240,13 +194,9 @@ def get_loaders(dataset='cifar10', classes=None, batch_size=128,
     if hasattr(config, 'traintest') and config.traintest:
         print('- training sub set -')
         summary(trainsubset, classes, class_to_idx)
-    if trainextrasubsets:
-        for subset in trainextrasubsets:
-            print('- extra training sub set for evaulation -')
-            summary(subset, classes, class_to_idx)
-
-    # print(len(trainset))
-    # print(len(testset))
+    if hasattr(config, 'valsize') and config.valsize:
+        print('- validation set -')
+        summary(valset, classes, class_to_idx)
 
     # ----------
     # deploy loader
@@ -272,6 +222,11 @@ def get_loaders(dataset='cifar10', classes=None, batch_size=128,
                                              shuffle=False, num_workers=n_workers,
                                              worker_init_fn=seed_worker, generator=generator)
 
+    if hasattr(config, 'valsize') and config.valsize:
+        valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size,
+                                                shuffle=False, num_workers=n_workers,
+                                                worker_init_fn=seed_worker, generator=generator)
+
 
     # integrate
     n_channel = trainset[0][0].size()[0]
@@ -284,6 +239,8 @@ def get_loaders(dataset='cifar10', classes=None, batch_size=128,
     loaders.testloader = testloader
     if hasattr(config, 'traintest') and config.traintest:
         loaders.traintestloader = traintestloader
+    if hasattr(config, 'valsize') and config.valsize:
+        loaders.valloader = valloader
     loaders.classes = classes
     loaders.class_to_idx = class_to_idx
     loaders.num_classes = len(classes)
@@ -293,13 +250,9 @@ def get_loaders(dataset='cifar10', classes=None, batch_size=128,
     loaders.testset = testset
     if hasattr(config, 'traintest') and config.traintest:
         loaders.trainsubset = trainsubset
+    if hasattr(config, 'valsize') and config.valsize:
+        loaders.valset = valset
     loaders.trainids = trainsubids_
-
-    if trainextrasubsets:
-        loaders.trainextrasubsets = trainextrasubsets
-        loaders.trainextraloaders = [torch.utils.data.DataLoader(subset, batch_size=batch_size,
-                                                                 shuffle=False, num_workers=n_workers,
-                                                                 worker_init_fn=seed_worker, generator=generator) for subset in trainextrasubsets]
 
     # print(classes)
     return loaders

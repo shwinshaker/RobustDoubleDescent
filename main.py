@@ -69,13 +69,6 @@ def train_wrap(**config):
             with open(getattr(config, path_weight), 'rb') as f:
                 sampleweights[name_weight] = np.load(f)
 
-    trainextrasubids = []
-    if hasattr(config, 'eval_subset_path') and config.eval_subset_path:
-        if hasattr(config, 'augment') and config.augment:
-            raise NotImplementedError()
-        for path in config.eval_subset_path:
-            with open(path, 'rb') as f:
-                trainextrasubids.append(np.load(f))
     labelnoisyids = []
     if hasattr(config, 'noise_subset_path') and config.noise_subset_path:
         if hasattr(config, 'augment') and config.augment:
@@ -100,7 +93,7 @@ def train_wrap(**config):
     else:
         loaders = get_loaders(dataset=config.dataset, classes=config.classes, batch_size=config.batch_size,
                               trainsize=config.trainsize, testsize=config.testsize,
-                              trainsubids=trainsubids, trainextrasubids=trainextrasubids,
+                              trainsubids=trainsubids,
                               labelnoisyids=labelnoisyids,
                               weights=sampleweights,
                               testweights=sampleweights_test,

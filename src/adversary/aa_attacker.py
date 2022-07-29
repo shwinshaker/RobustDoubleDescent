@@ -1,6 +1,6 @@
 #!./env python
 
-from .autoattack import AutoAttack
+from autoattack import AutoAttack
 import torch
 import numpy as np
 import os
@@ -104,12 +104,11 @@ class AAAttacker:
                     y_test.append(self.get_logits(x_test[start_idx:end_idx, :].to(self.device)).max(1)[1])
                 y_test = torch.cat(y_test).long().to(x_test.device)
 
-        x_ad, acc, flags = self.adversary.run_standard_evaluation(x_test,
-                                                                  y_test,
-                                                                  bs=self.batch_size)
-        ids = flags.nonzero().squeeze().cpu().numpy()
-        # if x_test is None:
-        #     ids = indices[ids]
+        x_ad, y_ad = self.adversary.run_standard_evaluation(x_test, y_test, bs=self.batch_size, return_labels=True)
+        ids = (y_ad == y_test).nonzero().squeeze().cpu().numpy()
+        acc = ((y_ad == y_test).sum() / len(y_test)).item()
+        if x_test is None:
+            ids = indices[ids]
         with open(self.ids_save_path, 'wb') as f:
             np.save(f, ids)
         return x_ad, acc * 100.

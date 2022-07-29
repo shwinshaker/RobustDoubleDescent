@@ -81,16 +81,20 @@ class Tester:
                    'Train-Acc-Ad', 'Test-Acc-Ad']
         self.logger.set_names(base_names + metrics)
 
-        # extra logs for subsets in training set
-        if hasattr(self.loaders, 'trainextraloaders'):
-            self.logger_extra = Logger('log_trainEval.txt', title='train extra log', resume=config.resume)
-            metrics = []
-            for i in range(len(self.loaders.trainextraloaders)):
-                metrics.extend(['Train-Loss-%i' % i,
-                                'Train-Loss-Ad-%i' % i,
-                                'Train-Acc-%i' % i,
-                                'Train-Acc-Ad-%i' % i])
-            self.logger_extra.set_names(base_names + metrics)
+        # -- validation logs
+        if hasattr(self.loaders, 'valloader'):
+            self.logger_val = Logger(os.path.join(config.save_dir, 'log_val.txt'), title='validation log', resume=config.resume)
+            metrics = ['Val-Loss', 'Val-Loss-Ad', 'Val-Acc', 'Val-Acc-Ad', 'Val-Acc5', 'Val-Acc5-Ad']
+            for m in config.robust_metrics:
+                metrics.append('Val-%s' % m)
+            self.logger_val.set_names(base_names + metrics)
+
+            self.best_acc_val = 0.
+            self.best_loss_val = np.inf
+            if config.resume:
+                self.best_acc_val = get_best(path=config.save_dir, option=self.best, phase='Acc', mode='val')
+                self.best_loss_val = get_best(path=config.save_dir, option=self.best, phase='Loss', mode='val')
+                print('> Best val Acc: %.2f Best val Loss: %.2f' % (self.best_acc_val, self.best_loss_val))
 
         # extra logs for class-wise evaluation
         if hasattr(config, 'class_eval') and config.class_eval:
@@ -153,15 +157,30 @@ class Tester:
         if acc > self.best_acc:
             print('> Best acc got at epoch %i. Best: %.2f Current: %.2f' % (epoch, acc, self.best_acc))
             self.best_acc = acc
-            save_model(net, 'best_model', self.config)
-            if hasattr(self.config, 'save_best_inc') and self.config.save_best_inc and epoch > 10:
-                save_model(net, 'best_model-%i' % epoch, self.config)
-                save_checkpoint(epoch, self.net, self.optimizer, self.scheduler, filename='checkpoint-best-%i.pth.tar' % epoch)
+            save_model(self.net, 'best_model', self.config)
 
         if loss < self.best_loss:
             print('> Best loss got at epoch %i. Best: %.2f Current: %.2f' % (epoch, loss, self.best_loss))
             self.best_loss = loss
-            save_model(net, 'best_model_loss', self.config)
+            save_model(self.net, 'best_model_loss', self.config)
+
+    def __update_best_val(self, epoch, val_acc, val_acc_ad, val_loss, val_loss_ad):
+        if self.best.lower() == 'robust':
+            acc = val_acc_ad
+            loss = val_loss_ad
+        else:
+            acc = val_acc
+            loss = val_loss
+
+        if acc > self.best_acc_val:
+            print('> Best val acc got at epoch %i. Best: %.2f Current: %.2f' % (epoch, acc, self.best_acc_val))
+            self.best_acc_val = acc
+            save_model(self.net, 'best_model_val', self.config)
+
+        if loss < self.best_loss_val:
+            print('> Best val loss got at epoch %i. Best: %.2f Current: %.2f' % (epoch, loss, self.best_loss_val))
+            self.best_loss_val = loss
+            save_model(self.net, 'best_model_loss_val', self.config)
 
     def update(self, epoch, i):
 
@@ -170,10 +189,6 @@ class Tester:
             The net should stay on test mode when attack
                 because it makes no sense to calculate the batch statistics of adversary examples
         """
-
-        # lookahead - load slow weights
-        if hasattr(self.config, 'lookahead') and self.config.lookahead:
-            self.optimizer._backup_and_load_cache()
 
         # train - test
         train_loss, train_prec1, train_ex_metrics = 0, 0, dict()
@@ -219,31 +234,52 @@ class Tester:
             logs += test_ex_metrics['class_acc'] + test_ex_metrics_ad['class_acc']
             self.logger_c.append(logs)
 
-        # evaluation on extra loaders
-        if hasattr(self.loaders, 'trainextraloaders'):
+        # evaluation on validation set
+        if hasattr(self.loaders, 'valloader'):
+            val_loss, val_prec1, val_prec5, val_ex_metrics = self.__test(net, self.loaders.valloader)
+            if not self.config.ad_test:
+                val_loss_ad, val_prec1_ad, val_prec5_ad, val_ex_metrics_ad = 0, 0, 0, dict()
+            elif self.config.ad_test == 'aa':
+                raise NotImplementedError('Validation loader not yet supported in AutoAttack..')
+                # test_loss_ad, test_prec1_ad, test_ex_metrics_ad = self.__ad_test_aa(mode='val')
+            elif self.config.ad_test in ['fgsm', 'pgd']:
+                val_loss_ad, val_prec1_ad, val_prec5_ad, val_ex_metrics_ad = self.__ad_test(net, self.loaders.valloader)
+            else:
+                raise KeyError('Adversary %s not supported!' % self.config.ad_test)
+
+            # update best
+            self.__update_best_val(net, epoch, val_prec1, val_prec1_ad, val_loss, val_loss_ad)
+
+            # logs
             logs = [_ for _ in logs_base]
-            for trainextraloader in self.loaders.trainextraloaders:
-                train_loss, train_prec1, train_ex_metrics = self.__test(trainextraloader)
-                if not self.config.ad_test:
-                    train_loss_ad, train_prec1_ad, train_ex_metrics_ad = 0, 0, dict()
-                elif self.config.ad_test == 'aa':
-                    raise NotImplementedError('Custom extra train loader not supported in AutoAttack..')
-                elif self.config.ad_test in ['fgsm', 'pgd']:
-                    train_loss_ad, train_prec1_ad, train_ex_metrics_ad = self.__ad_test(trainextraloader)
-                else:
-                    raise KeyError('Adversary %s not supported!' % self.config.ad_test)
-                logs += [train_loss, train_loss_ad,
-                         train_prec1, train_prec1_ad]
-            self.logger_extra.append(logs)
+            logs += [val_loss, val_loss_ad, val_prec1, val_prec1_ad, val_prec5, val_prec5_ad]
+            for m in self.config.robust_metrics:
+                logs.append(val_ex_metrics_ad['rb_metric'][m])
+            self.logger_val.append(logs)
 
-        # lookahead - revert to fast weights
-        if hasattr(self.config, 'lookahead') and self.config.lookahead:
-            self.optimizer._clear_and_load_backup()
+        # save model
+        self.__save_model(self.net, epoch=epoch)
 
+
+    def __save_model(self, net, suffix='', epoch=None):
+        # save model for post-training process separately
+        if hasattr(self.config, 'save_model_at') and self.config.save_model_at:
+            if isinstance(self.config.save_model_at, list):
+                if epoch in self.config.save_model_at:
+                    print('Model saved at epoch %i' % epoch) 
+                    save_model(net, 'model-%i%s' % (epoch, suffix), self.config)
+            if isinstance(self.config.save_model_at, str):
+                if epoch in range(*eval(self.config.save_model_at)):
+                    print('Model saved at epoch %i' % epoch) 
+                    save_model(net, 'model-%i%s' % (epoch, suffix), self.config)
+
+        # save last model
+        if epoch == self.config.epochs - 1:
+            save_model(net, 'model%s' % suffix, self.config)
 
     def close(self):
         self.logger.close()
-        if hasattr(self.loaders, 'trainextraloaders'):
-            self.logger_extra.close()
         if hasattr(self.config, 'class_eval') and self.config.class_eval:
             self.logger_c.close()
+        if hasattr(self.loaders, 'valloader'):
+            self.logger_val.close()
