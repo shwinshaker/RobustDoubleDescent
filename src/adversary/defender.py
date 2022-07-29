@@ -135,8 +135,7 @@ class AdTrainer:
                     assert(self.config.kd_coeff_rb > 0)
                     if isinstance(self.config.kd_teacher_rb, str):
                         self.teacher_rb = copy.deepcopy(self.net)
-                        if is_parallel('.') and (not is_parallel(os.path.join('..', os.path.split(self.config.kd_teacher_rb)[0]))):
-                            print('-- Parallel target model but single-gpu source model!')
+                        if is_parallel('.'):
                             self.teacher_rb.module.load_state_dict(torch.load(self.config.kd_teacher_rb, map_location=self.config.device))
                         else:
                             self.teacher_rb.load_state_dict(torch.load(self.config.kd_teacher_rb, map_location=self.config.device))
@@ -238,14 +237,6 @@ class AdTrainer:
                                   'Train-Acc': prec1.item()},
                                  inputs.size(0))
 
-        return loss.mean()
-
-    def _soft_ce(self, outputs, scores, weights=None):
-        log_probas = F.log_softmax(outputs, dim=1)
-        loss = -(scores * log_probas)
-        loss = loss.sum(dim=1) # sum over classes
-        if weights is not None:
-            loss *= weights
         return loss.mean()
 
     def _ad_loss_kd(self, inputs, labels, weights, epoch=None):

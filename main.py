@@ -138,9 +138,11 @@ def train_wrap(**config):
     if config.model_seed is not None:
         torch.manual_seed(config.model_seed)
     net = get_net(config, loaders)
+    config.parallel_model = False
     if torch.cuda.device_count() > 1:
         print("Let's use", torch.cuda.device_count(), "GPUs!")
         net = torch.nn.DataParallel(net)
+        config.parallel_model = True
     print(net)
     print("     Total params: %.2fM" % (sum(p.numel() for p in net.parameters())/1000000.0))
 

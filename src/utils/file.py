@@ -6,7 +6,14 @@ import re
 import errno
 import torch
 
-__all__ = ['check_path', 'save_checkpoint']
+__all__ = ['check_path', 'save_checkpoint', 'save_model']
+
+def save_model(net, basename, config=None):
+    if config.parallel_model:
+        torch.save(net.module.state_dict(), os.path.join(config.save_dir, '%s.pt' % basename))
+    else:
+        torch.save(net.state_dict(), os.path.join(config.save_dir, '%s.pt' % basename))
+
 
 def save_checkpoint(epoch, net, optimizer, scheduler=None, path='.', filename='checkpoint.pth.tar'):
     filepath = os.path.join(path, filename)

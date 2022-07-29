@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 from ..utils import test, Logger, nan_filter
-from ..utils import save_checkpoint
+from ..utils import save_checkpoint, save_model
 from ..adversary import ad_test, scale_step
 from ..adversary import AAAttacker
 from ..utils import mse_one_hot, ce_soft
@@ -153,16 +153,15 @@ class Tester:
         if acc > self.best_acc:
             print('> Best acc got at epoch %i. Best: %.2f Current: %.2f' % (epoch, acc, self.best_acc))
             self.best_acc = acc
-            torch.save(self.net.state_dict(), 'best_model.pt')
+            save_model(net, 'best_model', self.config)
             if hasattr(self.config, 'save_best_inc') and self.config.save_best_inc and epoch > 10:
-                torch.save(self.net.state_dict(), 'best_model-%i.pt' % epoch)
-                # Warning (if lookahead enabled): Not sure if there is any problem to save checkpoint when the cache in lookahead optimizer is loaded!
+                save_model(net, 'best_model-%i' % epoch, self.config)
                 save_checkpoint(epoch, self.net, self.optimizer, self.scheduler, filename='checkpoint-best-%i.pth.tar' % epoch)
 
         if loss < self.best_loss:
             print('> Best loss got at epoch %i. Best: %.2f Current: %.2f' % (epoch, loss, self.best_loss))
             self.best_loss = loss
-            torch.save(self.net.state_dict(), 'best_model_loss.pt')
+            save_model(net, 'best_model_loss', self.config)
 
     def update(self, epoch, i):
 
