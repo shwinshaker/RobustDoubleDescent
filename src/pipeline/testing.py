@@ -236,19 +236,19 @@ class Tester:
 
         # evaluation on validation set
         if hasattr(self.loaders, 'valloader'):
-            val_loss, val_prec1, val_prec5, val_ex_metrics = self.__test(net, self.loaders.valloader)
+            val_loss, val_prec1, val_prec5, val_ex_metrics = self.__test(self.loaders.valloader)
             if not self.config.ad_test:
                 val_loss_ad, val_prec1_ad, val_prec5_ad, val_ex_metrics_ad = 0, 0, 0, dict()
             elif self.config.ad_test == 'aa':
                 raise NotImplementedError('Validation loader not yet supported in AutoAttack..')
                 # test_loss_ad, test_prec1_ad, test_ex_metrics_ad = self.__ad_test_aa(mode='val')
             elif self.config.ad_test in ['fgsm', 'pgd']:
-                val_loss_ad, val_prec1_ad, val_prec5_ad, val_ex_metrics_ad = self.__ad_test(net, self.loaders.valloader)
+                val_loss_ad, val_prec1_ad, val_prec5_ad, val_ex_metrics_ad = self.__ad_test(self.loaders.valloader)
             else:
                 raise KeyError('Adversary %s not supported!' % self.config.ad_test)
 
             # update best
-            self.__update_best_val(net, epoch, val_prec1, val_prec1_ad, val_loss, val_loss_ad)
+            self.__update_best_val(epoch, val_prec1, val_prec1_ad, val_loss, val_loss_ad)
 
             # logs
             logs = [_ for _ in logs_base]
