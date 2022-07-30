@@ -221,6 +221,8 @@ def read_config(config_file='config.yaml'):
         config['checkpoint'] += '_ntrain=%i' % config['trainsize']
     if config['testsize']:
         config['checkpoint'] += '_ntest=%i' % config['testsize']
+    if 'valsize' in config and config['valsize']:
+        config['checkpoint'] += '_nval=%g' % config['valsize']
     if 'trainnoisyratio' in config and config['trainnoisyratio']:
         config['checkpoint'] += '_trainnoise=%g' % config['trainnoisyratio']
     if 'testnoisyratio' in config and config['testnoisyratio']:
