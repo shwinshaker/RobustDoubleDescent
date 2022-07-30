@@ -146,7 +146,6 @@ def get_loaders(dataset='cifar10', classes=None, batch_size=128,
         assert trainsubids is None, 'selected based on ids is prohibited when size is enabled'
         assert trainsize < len(trainset), 'training set has only %i examples' % len(trainset)
         trainids = np.random.choice(trainids, trainsize, replace=False)
-        np.save('id_train_%s_size=%i.npy' % (dataset, trainsize), trainids)
 
     # Specified subset
     if trainsubids is not None:
@@ -173,18 +172,64 @@ def get_loaders(dataset='cifar10', classes=None, batch_size=128,
         # rest of the training set
         trainids = np.setdiff1d(trainids, valids)
 
+    # -- train validation split
+    if hasattr(config, 'val_subset_path') and config.val_subset_path:
+        assert(not (hasattr(config, 'valsize') and config.valsize)), 'selected based on ids is prohibited when size is enabled'
+        valids = np.load(config.val_subset_path)
+        assert len(valids) < len(trainids), 'training set has only %i examples' % len(trainids)
+        assert(np.all([np.isin(i, trainids) for i in valids])), 'valids not contained in training set!'
+        # select validation set
+        np.save('id_val_%s_size=%i.npy' % (dataset, len(valids)), valids)
+
+        # make val set
+        targets = [trainset.targets[i] for i in valids]
+        valset = torch.utils.data.Subset(trainset, valids)
+        valset.classes = classes
+        valset.class_to_idx = class_to_idx
+        valset.targets = targets
+
+        # rest of the training set
+        trainids = np.setdiff1d(trainids, valids)
+
     if hasattr(config, 'valsize2') and config.valsize2: # for test
         if config.valsize2 < 1: # treat as ratio
             config.valsize2 = int(config.valsize2 * len(trainset))
         assert config.valsize2 < len(trainids), 'training set has only %i examples left' % len(trainids)
         rng = np.random.default_rng(6)
         valids = rng.choice(trainids, config.valsize2, replace=False)
-        np.save('id_val_%s_size=%i.npy' % (dataset, config.valsize2), valids)
+        np.save('id_val2_%s_size=%i.npy' % (dataset, config.valsize2), valids)
+
+        # make val set
+        targets = [trainset.targets[i] for i in valids]
+        valset2 = torch.utils.data.Subset(trainset, valids)
+        valset2.classes = classes
+        valset2.class_to_idx = class_to_idx
+        valset2.targets = targets
+
+        # rest of the training set
+        trainids = np.setdiff1d(trainids, valids)
+
+    # -- train validation split
+    if hasattr(config, 'val_subset_path2') and config.val_subset_path2:
+        assert(not (hasattr(config, 'valsize2') and config.valsize2)), 'selected based on ids is prohibited when size is enabled'
+        valids = np.load(config.val_subset_path2)
+        assert len(valids) < len(trainids), 'training set has only %i examples' % len(trainids)
+        assert(np.all([np.isin(i, trainids) for i in valids])), 'valids not contained in training set!'
+        # select validation set
+        np.save('id_val2_%s_size=%i.npy' % (dataset, len(valids)), valids)
+
+        # make val set
+        targets = [trainset.targets[i] for i in valids]
+        valset = torch.utils.data.Subset(trainset, valids)
+        valset.classes = classes
+        valset.class_to_idx = class_to_idx
+        valset.targets = targets
 
         # rest of the training set
         trainids = np.setdiff1d(trainids, valids)
 
     # - make train subset
+    np.save('id_train_%s_size=%i.npy' % (dataset, len(trainids)), trainids)
     targets = [trainset.targets[i] for i in trainids]
     trainset = torch.utils.data.Subset(trainset, trainids)
     trainset.classes = classes
@@ -198,9 +243,12 @@ def get_loaders(dataset='cifar10', classes=None, batch_size=128,
     if hasattr(config, 'traintest') and config.traintest:
         print('- training sub set -')
         summary(trainsubset, classes, class_to_idx)
-    if hasattr(config, 'valsize') and config.valsize:
+    if (hasattr(config, 'valsize') and config.valsize) or (hasattr(config, 'val_subset_path') and config.val_subset_path):
         print('- validation set -')
         summary(valset, classes, class_to_idx)
+    if (hasattr(config, 'valsize2') and config.valsize2) or (hasattr(config, 'val_subset_path2') and config.val_subset_path2):
+        print('- validation set 2-')
+        summary(valset2, classes, class_to_idx)
 
     # ----------
     # deploy loader
@@ -226,7 +274,7 @@ def get_loaders(dataset='cifar10', classes=None, batch_size=128,
                                              shuffle=False, num_workers=n_workers,
                                              worker_init_fn=seed_worker, generator=generator)
 
-    if hasattr(config, 'valsize') and config.valsize:
+    if (hasattr(config, 'valsize') and config.valsize) or (hasattr(config, 'val_subset_path') and config.val_subset_path):
         valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size,
                                                 shuffle=False, num_workers=n_workers,
                                                 worker_init_fn=seed_worker, generator=generator)
@@ -243,7 +291,7 @@ def get_loaders(dataset='cifar10', classes=None, batch_size=128,
     loaders.testloader = testloader
     if hasattr(config, 'traintest') and config.traintest:
         loaders.traintestloader = traintestloader
-    if hasattr(config, 'valsize') and config.valsize:
+    if (hasattr(config, 'valsize') and config.valsize) or (hasattr(config, 'val_subset_path') and config.val_subset_path):
         loaders.valloader = valloader
     loaders.classes = classes
     loaders.class_to_idx = class_to_idx
@@ -254,9 +302,9 @@ def get_loaders(dataset='cifar10', classes=None, batch_size=128,
     loaders.testset = testset
     if hasattr(config, 'traintest') and config.traintest:
         loaders.trainsubset = trainsubset
-    if hasattr(config, 'valsize') and config.valsize:
+    if (hasattr(config, 'valsize') and config.valsize) or (hasattr(config, 'val_subset_path') and config.val_subset_path):
         loaders.valset = valset
-    loaders.trainids = trainsubids_
+    loaders.trainids = trainids
 
     # print(classes)
     return loaders
