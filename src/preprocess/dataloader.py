@@ -167,6 +167,8 @@ def get_loaders(dataset='cifar10', classes=None, batch_size=128,
 
     # -- train validation split
     if hasattr(config, 'valsize') and config.valsize:
+        if config.valsize < 1: # treat as ratio
+            config.valsize = int(config.valsize * len(trainset))
         assert config.valsize < len(trainset), 'training set has only %i examples' % len(trainset)
         # select validation set
         rng = np.random.default_rng(7) # fixed seed

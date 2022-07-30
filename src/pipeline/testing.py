@@ -83,10 +83,8 @@ class Tester:
 
         # -- validation logs
         if hasattr(self.loaders, 'valloader'):
-            self.logger_val = Logger(os.path.join(config.save_dir, 'log_val.txt'), title='validation log', resume=config.resume)
-            metrics = ['Val-Loss', 'Val-Loss-Ad', 'Val-Acc', 'Val-Acc-Ad', 'Val-Acc5', 'Val-Acc5-Ad']
-            for m in config.robust_metrics:
-                metrics.append('Val-%s' % m)
+            self.logger_val = Logger('log_val.txt', title='validation log', resume=config.resume)
+            metrics = ['Val-Loss', 'Val-Loss-Ad', 'Val-Acc', 'Val-Acc-Ad']
             self.logger_val.set_names(base_names + metrics)
 
             self.best_acc_val = 0.
@@ -95,14 +93,6 @@ class Tester:
                 self.best_acc_val = get_best(path=config.save_dir, option=self.best, phase='Acc', mode='val')
                 self.best_loss_val = get_best(path=config.save_dir, option=self.best, phase='Loss', mode='val')
                 print('> Best val Acc: %.2f Best val Loss: %.2f' % (self.best_acc_val, self.best_loss_val))
-
-        # extra logs for class-wise evaluation
-        if hasattr(config, 'class_eval') and config.class_eval:
-            self.logger_c = Logger('log_class.txt', title='log for class-wise acc', resume=config.resume)
-            metrics = ['Test-Acc-%s' % c for c in loaders.classes]
-            if config.adversary:
-                metrics.extend(['Test-Acc-%s-Ad' % c for c in loaders.classes])
-            self.logger_c.set_names(base_names + metrics)
 
         self.time_start = time_start
         self.last_end = 0.
@@ -236,14 +226,14 @@ class Tester:
 
         # evaluation on validation set
         if hasattr(self.loaders, 'valloader'):
-            val_loss, val_prec1, val_prec5, val_ex_metrics = self.__test(self.loaders.valloader)
+            val_loss, val_prec1, val_ex_metrics = self.__test(self.loaders.valloader)
             if not self.config.ad_test:
-                val_loss_ad, val_prec1_ad, val_prec5_ad, val_ex_metrics_ad = 0, 0, 0, dict()
+                val_loss_ad, val_prec1_ad, val_ex_metrics_ad = 0, 0, 0, dict()
             elif self.config.ad_test == 'aa':
                 raise NotImplementedError('Validation loader not yet supported in AutoAttack..')
                 # test_loss_ad, test_prec1_ad, test_ex_metrics_ad = self.__ad_test_aa(mode='val')
             elif self.config.ad_test in ['fgsm', 'pgd']:
-                val_loss_ad, val_prec1_ad, val_prec5_ad, val_ex_metrics_ad = self.__ad_test(self.loaders.valloader)
+                val_loss_ad, val_prec1_ad, val_ex_metrics_ad = self.__ad_test(self.loaders.valloader)
             else:
                 raise KeyError('Adversary %s not supported!' % self.config.ad_test)
 
@@ -252,9 +242,7 @@ class Tester:
 
             # logs
             logs = [_ for _ in logs_base]
-            logs += [val_loss, val_loss_ad, val_prec1, val_prec1_ad, val_prec5, val_prec5_ad]
-            for m in self.config.robust_metrics:
-                logs.append(val_ex_metrics_ad['rb_metric'][m])
+            logs += [val_loss, val_loss_ad, val_prec1, val_prec1_ad]
             self.logger_val.append(logs)
 
         # save model
