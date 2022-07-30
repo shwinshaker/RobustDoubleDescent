@@ -66,11 +66,7 @@ class Tester:
         print('scaled eps:', config.eps_test, config.pgd_alpha_test)
 
         if config.ad_test == 'aa':
-            # use alternative tester
-            if hasattr(config, 'class_eval') and config.class_eval:
-                raise NotImplementedError('Per class evaluation not supported in aa..')
             self.__aa_setup()
-            # raise NotImplementedError('auto attack takes additional 8 hours..')
 
         # basic logs 
         base_names = ['Epoch', 'Mini-batch', 'lr', 'Time-elapse(Min)']
@@ -80,6 +76,15 @@ class Tester:
                    'Train-Acc', 'Test-Acc',
                    'Train-Acc-Ad', 'Test-Acc-Ad']
         self.logger.set_names(base_names + metrics)
+
+        # read best acc
+        self.best = config.best
+        self.best_acc = 0.
+        self.best_loss = np.inf
+        if config.resume:
+            self.best_acc = get_best(option=self.best, phase='Acc')
+            self.best_loss = get_best(option=self.best, phase='Loss')
+            print('> Best Acc: %.2f Best Loss: %.2f' % (self.best_acc, self.best_loss))
 
         # -- validation logs
         if hasattr(self.loaders, 'valloader'):
@@ -98,15 +103,6 @@ class Tester:
         self.last_end = 0.
         if config.resume:
             self.last_end = get_last_time() # min
-
-        # read best acc
-        self.best = config.best
-        self.best_acc = 0.
-        self.best_loss = np.inf
-        if config.resume:
-            self.best_acc = get_best(option=self.best, phase='Acc')
-            self.best_loss = get_best(option=self.best, phase='Loss')
-            print('> Best Acc: %.2f Best Loss: %.2f' % (self.best_acc, self.best_loss))
 
     def __get_lr(self):
         lrs = [param_group['lr'] for param_group in self.optimizer.param_groups]
@@ -218,12 +214,6 @@ class Tester:
                  train_prec1_ad, test_prec1_ad]
         self.logger.append(logs)
 
-        # evaluation on each class
-        if hasattr(self.config, 'class_eval') and self.config.class_eval:
-            logs = [_ for _ in logs_base]
-            logs += test_ex_metrics['class_acc'] + test_ex_metrics_ad['class_acc']
-            self.logger_c.append(logs)
-
         # evaluation on validation set
         if hasattr(self.loaders, 'valloader'):
             val_loss, val_prec1, val_ex_metrics = self.__test(self.loaders.valloader)
@@ -267,7 +257,5 @@ class Tester:
 
     def close(self):
         self.logger.close()
-        if hasattr(self.config, 'class_eval') and self.config.class_eval:
-            self.logger_c.close()
         if hasattr(self.loaders, 'valloader'):
             self.logger_val.close()
