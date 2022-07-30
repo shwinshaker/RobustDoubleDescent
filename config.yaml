@@ -1,6 +1,6 @@
 # ---- preset paras ---- (for config only)
 test: False # True
-suffix: epoch=1000
+suffix:
 
 # ----- adversary ---------
 adversary: pgd # gairat # trades # pgd # trades # trades # pgd # mart # trades # pgd # fgsm # pgd # gaussian #  pgd #  fgsm 
@@ -22,13 +22,15 @@ pgd_iter_test: 10 # 5
 # ---- knowledge distillation
 kd: True
 kd_teacher_st: 
-# kd_teacher_rb: 'sgd_PreActResNet18_gain=1_0_ad_trades_10_wd=0_0005_mom=0_9_pgd_10/best_model.pt'
 # kd_teacher_rb: 'sgd_PreActResNet18_gain=1_0_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10-0/best_model.pt'
-kd_teacher_rb: 'sgd_PreActResNet18_gain=1_0_swa_at_80_kd_T=1.47_rb=0.8_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10/best_model.pt'
+kd_teacher_rb: 'sgd_PreActResNet18_gain=1_0_swa_at_80_kd_T=2_rb=0.5_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10/best_model.pt'
+# kd_teacher_rb: 'sgd_PreActResNet18_gain=1_0_swa_at_80_kd_T=1.47_rb=0.8_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10/best_model.pt'
 # kd_teacher_rb: 'cifar100_sgd_PreActResNet18_gain=1_0_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10/best_model.pt'
+# kd_teacher_rb: 'tiny-imagenet_sgd_PreActResNet18_gain=1_0_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10/best_model.pt'
+# kd_teacher_rb: 'sgd_PreActResNet18_gain=1_0_ad_trades_10_wd=0_0005_mom=0_9_pgd_10/best_model.pt'
 kd_coeff_st: 0. # 0.1 # 0.25
-kd_coeff_rb: 0.8 # 0.83
-kd_temperature: 1.47 # 1.53 # 1.72
+kd_coeff_rb: 0.5 # 0.85 # 0.83
+kd_temperature: 2.0 # 1.23 # 1.53 # 1.72
 
 # -- tracker --- 
 paraTrack: False # True
@@ -59,7 +61,8 @@ swa_interval: 1
 class_eval: False # True
 
 # -- data --
-# train_subset_path: # :'/home/chengyu/Initialization/data_subsets/mean_rb_id_pgd10_epoch_friend_10000_cifar100.npy'
+# train_subset_path: '/home/chengyu/RobustDoubleDescent/data_subsets/mean_rb_id_pgd10_epoch_friend_10000_tiny-imagenet.npy'
+# train_subset_path: '/home/chengyu/RobustDoubleDescent/data_subsets/mean_rb_id_pgd10_epoch_friend_10000.npy'
 
 # eval_subset_path: ['/home/chengyu/Initialization/data_subsets/mean_rb_id_pgd10_early_stop_problem.npy',
 #                '/home/chengyu/Initialization/data_subsets/mean_rb_id_pgd10_early_stop_friend.npy',]
@@ -87,13 +90,14 @@ class_eval: False # True
 # reg_sample_path: '/home/chengyu/Initialization/data_subsets/hard_5000_flooding.npy'
 
 # ----- Regular paras ------
-dataset: cifar10 # mnist # cifar100
+dataset: cifar10 # mnist # cifar100 # tiny-imagenet 
 # aux_data: 'ti_500K_pseudo_labeled.pickle'
 soft_label: False
 classes: #  ['dog', 'cat']
 trainsize:
 testsize:
-data_dir: '/home/chengyu/Initialization/data'
+valsize:
+data_dir: '/home/chengyu/RobustDoubleDescent/data'
 opt: sgd # adam # sgd # adam # rmsprop # adagrad 
 model: PreActResNet18 # logistic # resnet #_woskip # dln11 # vgg11 # dln11 # resnet_fixup # dln11 # resnet_woskip # vgg11 # logistic #  resnet # _woaffine # _wobn # vgg11 # _bn # resnet  #
 bn: True # False
@@ -101,7 +105,7 @@ depth: 20
 width: 64
 scheduler: multistep
 resume: False
-epochs: 1000 # 110 # 80 # 100 # 200 
+epochs: 160 # 80 # 100 # 200 
 milestones: [80, 120] # [100, 105] # [30, 60]  # [100, 150] #  step lr scheduler
 lr: 0.1 # 0.001 # - adam
 wd: 0.0005 # 05 # # 0
@@ -109,7 +113,7 @@ momentum: 0.9 # .9 # .9   # momentum seems to cause instability
 batch_size: 128 # 32
 gamma: 0.1 # lr decay factor
 
-gpu_id: 5
+gpu_id: '4,5'
 manual_seed: # 7
 model_seed:
 state_path: #  'sgd_resnet20_gain=1_0_ad_pgd_5_wd=0_0005_mom=0_9/model.pt'
@@ -117,7 +121,6 @@ best: 'robust'
 traintest: False # True
 save_model: True
 save_model_at:
-save_best_inc: False
 save_checkpoint: False
 
 

@@ -10,7 +10,7 @@ import argparse
 from src.adversary import attack, scale_step
 from src.preprocess import get_loaders
 from src.analyses import get_net
-from src.utils import Dict2Obj
+from src.utils import Dict2Obj, Logger
 
 class ModelWithTemperature(nn.Module):
     """
@@ -75,17 +75,16 @@ class ModelWithTemperature(nn.Module):
             print('[%i/%i]' % (e+1, len(valid_loader)), end='\r')
             inputs, labels = inputs.to(self.config.device), labels.to(self.config.device)
             if self.ad:
-                inputs_, _ = attack(src_net, 
-                                   nn.CrossEntropyLoss().cuda(),
-                                   inputs, labels,
-                                   eps=self.config.eps,
-                                   pgd_alpha=self.config.pgd_alpha,
-                                   pgd_iter=self.config.pgd_iter,
-                                   adversary=self.config.adversary,
-                                   randomize=self.config.randomize,
-                                   is_clamp=True,
-                                   target=None, ## mark...
-                                   config=self.config)
+                inputs_ = attack(src_net, 
+                                  nn.CrossEntropyLoss().cuda(),
+                                  inputs, labels,
+                                  eps=self.config.eps,
+                                  pgd_alpha=self.config.pgd_alpha,
+                                  pgd_iter=self.config.pgd_iter,
+                                  adversary=self.config.adversary,
+                                  randomize=self.config.randomize,
+                                  target=None, ## mark...
+                                  config=self.config)
             else:
                 inputs_ = inputs
             with torch.no_grad():
@@ -150,19 +149,18 @@ class AccuracyWithTemperature(nn.Module):
         counts = 0
         for e, (inputs, labels, _) in enumerate(loader):
             print('[%i/%i]' % (e, len(loader)), end='\r')
-            inputs, labels = inputs.to(device), labels.to(device)
+            inputs, labels = inputs.to(self.config.device), labels.to(self.config.device)
             if self.ad:
-                inputs_, _ = attack(net, 
-                                    nn.CrossEntropyLoss().cuda(),
-                                    inputs, labels,
-                                    eps=self.config.eps,
-                                    pgd_alpha=self.config.pgd_alpha,
-                                    pgd_iter=self.config.pgd_iter,
-                                    adversary=self.config.adversary,
-                                    randomize=self.config.randomize,
-                                    is_clamp=True,
-                                    target=None, ## mark...
-                                    config=self.config)
+                inputs_ = attack(net, 
+                                 nn.CrossEntropyLoss().cuda(),
+                                 inputs, labels,
+                                 eps=self.config.eps,
+                                 pgd_alpha=self.config.pgd_alpha,
+                                 pgd_iter=self.config.pgd_iter,
+                                 adversary=self.config.adversary,
+                                 randomize=self.config.randomize,
+                                 target=None, ## mark...
+                                 config=self.config)
             else:
                 inputs_ = inputs
             with torch.no_grad():
@@ -188,7 +186,9 @@ class AccuracyWithTemperature(nn.Module):
 def main():
     # -- hypers
     dataset = 'cifar10'
-    path = 'checkpoints/sgd_PreActResNet18_gain=1_0_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10'
+    # path = 'checkpoints/sgd_PreActResNet18_gain=1_0_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10-0'
+    # path = 'checkpoints/sgd_PreActResNet18_gain=1_0_swa_at_80_kd_T=2_rb=0.5_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10'
+    path = 'checkpoints/sgd_PreActResNet18_gain=1_0_swa_at_80_kd_T=1.47_rb=0.8_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10'
     model = 'PreActResNet18'
     depth = 28
     width = 5
@@ -206,7 +206,7 @@ def main():
     loaders = get_loaders(dataset=dataset,
                           random_augment=False,
                           shuffle_train_loader=False, 
-                          data_dir='/home/chengyu/Initialization/data')
+                          data_dir='./data')
 
     # -- get model
     print('>>>>>>>>>>> get net..')
@@ -236,12 +236,16 @@ def main():
 
     if acc_min is None:
         idx_min = np.unravel_index(np.argmin(nlls), nlls.shape)
-        print('T* = %.2f, rho* = %.2f, nll_min = %.2f' % (temperatures[idx_min[0]], coefficients[idx_min[1]], nlls[idx_min]))
     else:
         nlls_masked = np.array(nlls)
-        nlls_masked[accs < acc_min] = np.max(nlls_masked) * 2
+        nlls_masked[accs < acc_min] = np.max(nlls_masked) * 2 # any large number
         idx_min = np.unravel_index(np.argmin(nlls_masked), nlls_masked.shape)
-        print('T* = %.2f, rho* = %.2f, nll_min = %.2f' % (temperatures[idx_min[0]], coefficients[idx_min[1]], nlls_masked[idx_min]))
+
+    print('T* = %.2f, rho* = %.2f, nll_min = %.2f, acc_min = %.2f' % (temperatures[idx_min[0]], coefficients[idx_min[1]], nlls[idx_min], accs[idx_min]))
+    logger = Logger('%s/log_optimal_parameter.txt' % path)
+    logger.set_names(['T*', 'rho*', 'nll_min', 'acc'])
+    logger.append([temperatures[idx_min[0]], coefficients[idx_min[1]], nlls[idx_min], accs[idx_min]])
+    logger.close()
 
     print('>>>>>>>>>>> save results..')
     save_data = {'temperature': temperatures,
