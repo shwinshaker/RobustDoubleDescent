@@ -13,6 +13,10 @@ from . import add_label_noise
 
 __all__ = ['get_loaders']
 
+def add_trainsubids(trainsubids, ids):
+    assert(not np.any(np.intersect1d(trainsubids, ids))), 'subset ids intersects!'
+    return np.concatenate([trainsubids, ids])
+
 def get_loaders(dataset='cifar10', classes=None, batch_size=128,
                 shuffle_train_loader=True, random_augment=True,
                 trainsize=None, testsize=None, 
@@ -125,69 +129,67 @@ def get_loaders(dataset='cifar10', classes=None, batch_size=128,
     classes = trainset.classes
     class_to_idx = trainset.class_to_idx
 
-    trainsubids_ = None
-
-    # Randomly select subset
-    if trainsize is not None:
-        assert trainsubids is None, 'selected based on ids is prohibited when size is enabled'
-        assert trainsize < len(trainset), 'training set has only %i examples' % len(trainset)
-        # random select subsets
-        trainsubids_ = np.random.choice(len(trainset), trainsize, replace=False)
-        targets = [trainset.targets[i] for i in trainsubids_]
-        trainset = torch.utils.data.Subset(trainset, trainsubids_)
-        np.save('id_train_%s_size=%i.npy' % (dataset, trainsize), trainsubids_)
-
-        # recover attributes
-        trainset.classes = classes
-        trainset.class_to_idx = class_to_idx
-        trainset.targets = targets
-
-    # Specified subset
-    if trainsubids is not None:
-        assert(isinstance(trainsubids, np.ndarray))
-        targets = [trainset.targets[i] for i in trainsubids]
-        trainset = torch.utils.data.Subset(trainset, trainsubids)
-
-        # recover attributes
-        trainset.classes = classes
-        trainset.class_to_idx = class_to_idx
-        trainset.targets = targets
-
-        # to be consistent with the variable used above
-        trainsubids_ = np.array(trainsubids)
-
+    # select a subset of training set for robustness validation
+    # ~~Do it before sampling training set so that the training accuracy is always comparable~~ ??
     if hasattr(config, 'traintest') and config.traintest:
-        # select a subset of training set for robustness validation
-        # ~~Do it before sampling training set so that the training accuracy is always comparable~~ ??
         if len(testset) < len(trainset):
             subids = random.sample(range(len(trainset)), len(testset))
             trainsubset = torch.utils.data.Subset(trainset, subids)
         else:
             trainsubset = trainset
 
+    # - select training subset
+    trainids = np.arange(len(trainset))
+
+    # Randomly select subset
+    if trainsize is not None:
+        assert trainsubids is None, 'selected based on ids is prohibited when size is enabled'
+        assert trainsize < len(trainset), 'training set has only %i examples' % len(trainset)
+        trainids = np.random.choice(trainids, trainsize, replace=False)
+        np.save('id_train_%s_size=%i.npy' % (dataset, trainsize), trainids)
+
+    # Specified subset
+    if trainsubids is not None:
+        assert(isinstance(trainsubids, np.ndarray))
+        trainids = np.array(trainsubids)
+
     # -- train validation split
     if hasattr(config, 'valsize') and config.valsize:
         if config.valsize < 1: # treat as ratio
             config.valsize = int(config.valsize * len(trainset))
-        assert config.valsize < len(trainset), 'training set has only %i examples' % len(trainset)
+        assert config.valsize < len(trainids), 'training set has only %i examples' % len(trainids)
         # select validation set
         rng = np.random.default_rng(7) # fixed seed
-        valsubids_ = rng.choice(len(trainset), config.valsize, replace=False)
-        np.save('id_val_%s_size=%i.npy' % (dataset, config.valsize), valsubids_)
-        targets = [trainset.targets[i] for i in valsubids_]
-        valset = torch.utils.data.Subset(trainset, valsubids_)
+        valids = rng.choice(trainids, config.valsize, replace=False)
+        np.save('id_val_%s_size=%i.npy' % (dataset, config.valsize), valids)
+
+        # make val set
+        targets = [trainset.targets[i] for i in valids]
+        valset = torch.utils.data.Subset(trainset, valids)
         valset.classes = classes
         valset.class_to_idx = class_to_idx
         valset.targets = targets
 
         # rest of the training set
-        trainsubids_ = np.setdiff1d(np.arange(len(trainset)), valsubids_)
-        targets = [trainset.targets[i] for i in trainsubids_]
-        trainset = torch.utils.data.Subset(trainset, trainsubids_)
-        trainset.classes = classes
-        trainset.class_to_idx = class_to_idx
-        trainset.targets = targets
+        trainids = np.setdiff1d(trainids, valids)
 
+    if hasattr(config, 'valsize2') and config.valsize2: # for test
+        if config.valsize2 < 1: # treat as ratio
+            config.valsize2 = int(config.valsize2 * len(trainset))
+        assert config.valsize2 < len(trainids), 'training set has only %i examples left' % len(trainids)
+        rng = np.random.default_rng(6)
+        valids = rng.choice(trainids, config.valsize2, replace=False)
+        np.save('id_val_%s_size=%i.npy' % (dataset, config.valsize2), valids)
+
+        # rest of the training set
+        trainids = np.setdiff1d(trainids, valids)
+
+    # - make train subset
+    targets = [trainset.targets[i] for i in trainids]
+    trainset = torch.utils.data.Subset(trainset, trainids)
+    trainset.classes = classes
+    trainset.class_to_idx = class_to_idx
+    trainset.targets = targets
 
     print('- training set -')
     summary(trainset, classes, class_to_idx)
