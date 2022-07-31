@@ -91,6 +91,10 @@ class ModelWithTemperature(nn.Module):
                 logits = net(inputs_)
             logits_list.append(logits)
             labels_list.append(labels)
+
+            # if hasattr(config, 'max_iter') and config.max_iter and e > config.max_iter: 
+            # if e > 5:
+            #    break
             
         logits_ = torch.cat(logits_list).cuda()
         labels_ = torch.cat(labels_list).cuda()
@@ -175,7 +179,7 @@ class AccuracyWithTemperature(nn.Module):
             print('[%i/%i] acc: %.4f' % (e + 1, len(loader), corrects.float()/counts), end='\r')
         
             ## to speed up, no need to check all examples
-            # if e > 100: 
+            # if e > 5: 
             #     break
             
         logits_ = torch.cat(logits_list).cuda()
@@ -188,12 +192,23 @@ def main():
     dataset = 'cifar10'
     # path = 'checkpoints/sgd_PreActResNet18_gain=1_0_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10-0'
     # path = 'checkpoints/sgd_PreActResNet18_gain=1_0_swa_at_80_kd_T=2_rb=0.5_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10'
-    path = 'checkpoints/sgd_PreActResNet18_gain=1_0_swa_at_80_kd_T=1.47_rb=0.8_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10'
+    # path = 'checkpoints/sgd_PreActResNet18_gain=1_0_swa_at_80_kd_T=1.47_rb=0.8_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10'
+    # path = 'checkpoints/sgd_PreActResNet18_gain=1_0_ad_pgd_10_eps=6_alpha=1_wd=0_0005_mom=0_9_pgd_10'
+    # path = 'checkpoints/sgd_PreActResNet18_gain=1_0_ad_pgd_10_eps=16_alpha=1_wd=0_0005_mom=0_9_pgd_10'
+    # path = 'checkpoints/sgd_PreActResNet18_swa_at_80_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10_nval=0.1'
+    # path = 'checkpoints/sgd_PreActResNet18_swa_at_80_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10_nval=0.1_nval2=0.1'
+    path = 'checkpoints/sgd_PreActResNet18_gain=1_0_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10_sub=mean_rb_id_pgd10_epoch_friend_35000'
     model = 'PreActResNet18'
     depth = 28
     width = 5
     gpu_id = '0'
     acc_min = 0.9 # Minimum accuracy of the alternative labeling. if none, no constraint on the accuracy
+    val_subset_path = None
+    # val_subset_path = 'checkpoints/sgd_PreActResNet18_swa_at_80_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10_nval=0.1/id_val_cifar10_size=5000.npy'
+    # val_subset_path = 'checkpoints/sgd_PreActResNet18_swa_at_80_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10_nval=0.1_nval2=0.1/id_val2_cifar10_size=5000.npy'
+    # val_subset_path2 = 'checkpoints/sgd_PreActResNet18_swa_at_80_ad_pgd_10_alpha=1_wd=0_0005_mom=0_9_pgd_10_nval=0.1_nval2=0.1/id_val_cifar10_size=5000.npy'
+    # valloader = 'valloader' # 'testloader'
+    valloader = 'testloader'
 
     # -- env
     print('>>>>>>>>>>> set environment..')
@@ -206,7 +221,8 @@ def main():
     loaders = get_loaders(dataset=dataset,
                           random_augment=False,
                           shuffle_train_loader=False, 
-                          data_dir='./data')
+                          data_dir='./data',
+                          config=Dict2Obj({'val_subset_path': val_subset_path}))
 
     # -- get model
     print('>>>>>>>>>>> get net..')
@@ -215,8 +231,8 @@ def main():
 
     # -- Grid search - 2D
     print('>>>>>>>>>>> Initialize evaluation instance..')
-    scaled_model = ModelWithTemperature(net, loaders.testloader, surro_net=net_last, device=device)
-    acc_model = AccuracyWithTemperature(net, loaders.trainloader, num_classes=loaders.num_classes, device=device)
+    scaled_model = ModelWithTemperature(net, getattr(loaders, valloader), surro_net=net_last, device=device)
+    acc_model = AccuracyWithTemperature(net, getattr(loaders, 'trainloader'), num_classes=loaders.num_classes, device=device)
 
     print('>>>>>>>>>>> Start grid searching for optimal hyperparameters..')
     temperatures = np.exp(np.linspace(np.log(0.2), np.log(16), 100))
@@ -252,7 +268,7 @@ def main():
                  'ratio': coefficients,
                  'nll': nlls,
                  'accs': accs}
-    torch.save(save_data, '%s/log_optimal_parameter.pt' % path)
+    # torch.save(save_data, '%s/log_optimal_parameter.pt' % path)
 
 
 if __name__ == '__main__':
