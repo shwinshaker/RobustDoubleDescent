@@ -54,10 +54,6 @@ def train_wrap(**config):
 
     ## ------------------------------- data ----------------------------------
     print('=====> Loading data..')
-    trainsubids = None
-    if hasattr(config, 'train_subset_path') and config.train_subset_path:
-        with open(config.train_subset_path, 'rb') as f:
-            trainsubids = np.load(f)
 
     sampleweights = dict()
     sampleweights_test = dict()
@@ -87,13 +83,11 @@ def train_wrap(**config):
         loaders = get_loaders_augment(dataset=config.dataset,
                                       batch_size=config.batch_size,
                                       trainsize=config.trainsize, 
-                                      trainsubids=trainsubids,
                                       data_dir=config.data_dir,
                                       config=config)
     else:
         loaders = get_loaders(dataset=config.dataset, classes=config.classes, batch_size=config.batch_size,
                               trainsize=config.trainsize, testsize=config.testsize,
-                              trainsubids=trainsubids,
                               labelnoisyids=labelnoisyids,
                               weights=sampleweights,
                               testweights=sampleweights_test,
